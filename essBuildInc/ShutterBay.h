@@ -40,7 +40,7 @@ class ShutterBay : public attachSystem::ContainedComp,
 {
  private:
   
-  const int bulkIndex;           ///< Index of surface offset
+  const int SBayIndex;           ///< Index of surface offset
   int cellIndex;                ///< Cell index
   
   double xStep;                 ///< Offset on X to Target
@@ -71,7 +71,7 @@ class ShutterBay : public attachSystem::ContainedComp,
 
   /// Access to main cell
   int getMainCell() const { return cellIndex-1; }
-
+  virtual void addToInsertChain(attachSystem::ContainedComp&) const; 
   void createAll(Simulation&,const attachSystem::FixedComp&,
 		 const attachSystem::ContainedComp&);
 

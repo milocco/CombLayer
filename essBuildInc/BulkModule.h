@@ -74,6 +74,9 @@ class BulkModule : public attachSystem::ContainedComp,
 
   std::string getComposite(const std::string&) const;
 
+  int getMainCell() const { return bulkIndex+1; }
+  int getRefCell() const { return bulkIndex+2; }
+  virtual void addToInsertChain(attachSystem::ContainedComp&) const; 
   void addFlightUnit(Simulation&,const attachSystem::FixedComp&);
   void createAll(Simulation&,const attachSystem::FixedComp&,
 		 const attachSystem::ContainedComp&);

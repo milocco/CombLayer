@@ -234,6 +234,7 @@ CylModerator::createObjects(Simulation& System)
 
   std::string Out;
   int SI(modIndex);
+
   for(size_t i=0;i<=nLayers;i++)
     {
       Out=ModelSupport::getComposite(SMap,SI," -7 5 -6 ");

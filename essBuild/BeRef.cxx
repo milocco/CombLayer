@@ -59,7 +59,6 @@
 #include "Qhull.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "support.h"
 #include "stringCombine.h"
@@ -81,6 +80,45 @@ BeRef::BeRef(const std::string& Key) :
     \param Key :: Name of construction key
   */
 {}
+
+BeRef::BeRef(const BeRef& A) : 
+  attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
+  refIndex(A.refIndex),cellIndex(A.cellIndex),
+  xStep(A.xStep),yStep(A.yStep),zStep(A.zStep),
+  xyAngle(A.xyAngle),zAngle(A.zAngle),radius(A.radius),
+  height(A.height),wallThick(A.wallThick),
+  refMat(A.refMat),wallMat(A.wallMat),frontHeight(A.frontHeight)
+
+{}
+
+BeRef&
+BeRef::operator=(const BeRef& A)
+  /*!
+    Assignment operator
+    \param A :: BeRef to copy
+    \return *this
+  */
+{
+  if (this!=&A)
+    {
+      attachSystem::ContainedComp::operator=(A);
+      attachSystem::FixedComp::operator=(A);
+      cellIndex=A.cellIndex;
+      xStep=A.xStep;
+      yStep=A.yStep;
+      zStep=A.zStep;
+      xyAngle=A.xyAngle;
+      zAngle=A.zAngle;
+      radius=A.radius;
+      height=A.height;
+      wallThick=A.wallThick;
+      refMat=A.refMat;
+      wallMat=A.wallMat;
+      frontHeight=A.frontHeight;
+ 
+    }
+  return *this;
+}
 
 
 BeRef::~BeRef()
@@ -108,8 +146,11 @@ BeRef::populate(const FuncDataBase& Control)
   radius=Control.EvalVar<double>(keyName+"Radius");   
   height=Control.EvalVar<double>(keyName+"Height");   
   wallThick=Control.EvalVar<double>(keyName+"WallThick");   
-  refMat=ModelSupport::EvalMat<int>(Control,keyName+"RefMat");   
-  wallMat=ModelSupport::EvalMat<int>(Control,keyName+"WallMat");   
+
+  refMat=Control.EvalVar<int>(keyName+"RefMat");   
+  wallMat=Control.EvalVar<int>(keyName+"WallMat");
+ 
+ frontHeight=Control.EvalVar<double>(keyName+"FrontHeight");   
   
   return;
 }
@@ -136,8 +177,7 @@ BeRef::createSurfaces()
   */
 {
   ELog::RegMethod RegA("BeRef","createSurfaces");
-  
-    
+   
   ModelSupport::buildCylinder(SMap,refIndex+7,Origin,Z,radius);  
   ModelSupport::buildCylinder(SMap,refIndex+17,Origin,Z,radius+wallThick);  
 
@@ -148,6 +188,13 @@ BeRef::createSurfaces()
   ModelSupport::buildPlane(SMap,refIndex+16,
 			   Origin+Z*(height/2.0+wallThick),Z);  
 
+  //ALB+++++++++
+  //define planes where the Be is substituted by Fe
+  ModelSupport::buildPlane(SMap,refIndex+25,Origin-Z*frontHeight/2.0,Z);  
+  ModelSupport::buildPlane(SMap,refIndex+26,Origin+Z*frontHeight/2.0,Z);  
+  //ALB++++++++++
+
+ ModelSupport::buildCylinder(SMap,refIndex+8,Origin,Z,radius+10);  
 
   return; 
 }
@@ -177,14 +224,20 @@ BeRef::createObjects(Simulation& System)
 
   std::string Out;
   
-  Out=ModelSupport::getComposite(SMap,refIndex," -7 5 -6 ");
+  Out=ModelSupport::getComposite(SMap,refIndex," -7 5 -6 (-25:26)");
   System.addCell(MonteCarlo::Qhull(cellIndex++,refMat,0.0,Out));
-  Out=ModelSupport::getComposite(SMap,refIndex," -17 15 -16 (7:-5:6)");
+  
+  Out=ModelSupport::getComposite(SMap,refIndex," -17 15 -16 (-25:26) (7:-5:6)");
   System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+ 
+  //ALB+++++++
+  // Out=ModelSupport::getComposite(SMap,refIndex," -17 15 -16 ");
+  Out=ModelSupport::getComposite(SMap,refIndex," (-17 15 -25):(-17 -16 26)");
+  //ALB++++++
 
-  Out=ModelSupport::getComposite(SMap,refIndex," -17 15 -16 ");
   addOuterSurf(Out);
-  return; 
+ 
+   return; 
 
 }
 

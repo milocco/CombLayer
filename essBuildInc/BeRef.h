@@ -55,6 +55,7 @@ class BeRef : public attachSystem::ContainedComp,
 
   int refMat;                     ///< reflector material
   int wallMat;                    ///< wall Material
+  double frontHeight;                  ///< Height
 
   // Functions:
 

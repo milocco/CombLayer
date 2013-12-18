@@ -89,7 +89,8 @@ BlockAddition::BlockAddition(const BlockAddition& A) :
   xyAngle(A.xyAngle),zAngle(A.zAngle),length(A.length),
   height(A.height),width(A.width),wallThick(A.wallThick),
   gap(A.gap),waterMat(A.waterMat),wallMat(A.wallMat),
-  edgeSurf(A.edgeSurf)
+  edgeSurf(A.edgeSurf),pipeLength(A.pipeLength),pipeRadius(A.pipeRadius),
+  pipeNumber(A.pipeNumber)
   /*!
     Copy constructor
     \param A :: BlockAddition to copy
@@ -123,6 +124,10 @@ BlockAddition::operator=(const BlockAddition& A)
       waterMat=A.waterMat;
       wallMat=A.wallMat;
       edgeSurf=A.edgeSurf;
+      pipeLength=A.pipeLength;
+      pipeRadius=A.pipeRadius;
+      pipeNumber=A.pipeNumber;
+
     }
   return *this;
 }
@@ -184,7 +189,13 @@ BlockAddition::populate(const FuncDataBase& Control)
   gap=Control.EvalVar<double>(keyName+"Gap");   
   wallMat=Control.EvalVar<int>(keyName+"WallMat");   
   waterMat=Control.EvalVar<int>(keyName+"WaterMat");   
-  
+
+    // Pipes
+  pipeLength=Control.EvalVar<double>(keyName+"PipeLength");
+  pipeRadius=Control.EvalVar<double>(keyName+"PipeInnerRadius");
+  // mute variable
+  pipeNumber=Control.EvalVar<int>(keyName+"PipeN");   
+
   return;
 }
 
@@ -201,14 +212,18 @@ BlockAddition::createUnitVector(const Geometry::Vec3D& O,
 {
   ELog::RegMethod RegA("BlockAddition","createUnitVector");
   const Geometry::Plane* PPtr=
-    SMap.realPtr<Geometry::Plane>(edgeSurf);
-  
+    SMap.realPtr<Geometry::Plane>(edgeSurf); 
   Origin=O;
   Z=ZAxis;
   Y=YAxis;
   X=Z*Y;
-  
-  applyShift(xStep+wallThick,yStep,zStep);
+  //ALB+++
+  //temporary fix to match block corner   
+   if(edgeSurf==1140103||edgeSurf==1040103)
+    applyShift(xStep+wallThick,yStep,zStep);
+   else
+    applyShift(xStep-wallThick,yStep,zStep);
+   //ALB+++
   applyAngleRotate(xyAngle,zAngle);
   if (PPtr && PPtr->getNormal().dotProd(X)<0.0)
     X*=-1.0;
@@ -233,6 +248,7 @@ BlockAddition::createSurfaces()
 				      SMap.realPtr<Geometry::Plane>(edgeSurf),
 				      xyAngle,Z,rotCent);
     }
+
   ModelSupport::buildPlane(SMap,blockIndex+2,Origin+Y*length,Y);  
   ModelSupport::buildPlane(SMap,blockIndex+3,Origin,X);  
   ModelSupport::buildPlane(SMap,blockIndex+4,Origin+X*width,X);  
@@ -263,7 +279,26 @@ BlockAddition::createSurfaces()
   ModelSupport::buildPlane(SMap,blockIndex+26,  
 			   Origin+Z*(height/2.0+wallThick+gap),Z);  
 		       
+  // pipes
+  ModelSupport::buildCylinder(SMap,blockIndex+107,Origin+X*width/2,Y,pipeRadius);  
+  ModelSupport::buildCylinder(SMap,blockIndex+108,Origin+X*width/2,Y,pipeRadius+wallThick);  
+  ModelSupport::buildCylinder(SMap,blockIndex+117,
+                              Origin+X*width/2+Z*(height/2-pipeRadius),
+                              Y,pipeRadius);  
+  ModelSupport::buildCylinder(SMap,blockIndex+118,
+                              Origin+X*width/2+Z*(height/2-pipeRadius),
+                              Y,pipeRadius+wallThick);  
+  ModelSupport::buildCylinder(SMap,blockIndex+127,
+                              Origin+X*width/2-Z*(height/2-pipeRadius),
+                              Y,pipeRadius);  
+  ModelSupport::buildCylinder(SMap,blockIndex+128,
+                              Origin+X*width/2-Z*(height/2-pipeRadius),
+                              Y,pipeRadius+wallThick);  
 
+  Geometry::Vec3D O1(0,0,0);
+  ModelSupport::buildCylinder(SMap,blockIndex+207,O1,Z,pipeLength);  
+  ModelSupport::buildPlane(SMap,blockIndex+208,Origin+Y*(length+1.0),Y);  
+ 
   return; 
 }
 
@@ -338,20 +373,51 @@ BlockAddition::createObjects(Simulation& System,
       Out=ModelSupport::getComposite(SMap,blockIndex,"1 -2 3 -4 5 -6 ");
       Out+=layOut;
       System.addCell(MonteCarlo::Qhull(cellIndex++,waterMat,0.0,Out));
-  
+
+       // Out=ModelSupport::getComposite(SMap,blockIndex,
+       //  				     "1 -12 13 -14 15 -16 (2:-3:4)");
+
+      //ALB+++
       Out=ModelSupport::getComposite(SMap,blockIndex,
-				     "1 -12 13 -14 15 -16 (2:-3:4:-5:6)");
+        				     "1 -12 13 -14 5 -6 107 117 127 (2:-3:4)");
       Out+=layOut;
       System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
-      
+      //block cap up
       Out=ModelSupport::getComposite(SMap,blockIndex,
-				     "1 -22 23 -24 25 -26 (12:-13:14:-15:16)");
-      Out+=layOut2;
+      				     " 1 -12 13 -14 6 -16");  
+      System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+      //block cap down
+      Out=ModelSupport::getComposite(SMap,blockIndex,
+      				     " 1 -12 13 -14 -5 15");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+
+      Out=ModelSupport::getComposite(SMap,blockIndex,"2 -207 -107 ");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,waterMat,0.0,Out));
+
+     Out=ModelSupport::getComposite(SMap,blockIndex,"2 -207 -117 ");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,waterMat,0.0,Out));
+
+     Out=ModelSupport::getComposite(SMap,blockIndex,"2 -207 -127 ");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,waterMat,0.0,Out));
+
+      Out=ModelSupport::getComposite(SMap,blockIndex,"22 -207 -108 107");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+
+      Out=ModelSupport::getComposite(SMap,blockIndex,"22 -207 -118 117 ");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+
+      Out=ModelSupport::getComposite(SMap,blockIndex,"22 -207 -128 127 ");
+      System.addCell(MonteCarlo::Qhull(cellIndex++,wallMat,0.0,Out));
+
+      Out=ModelSupport::getComposite(SMap,blockIndex,
+          "1 -22 23 -24 25 -26 108 118 128 (12:-13:14:-15:16)");
+      Out+=layOut;
       System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
-      
-      
-      Out=ModelSupport::getComposite(SMap,blockIndex,"1 -22 23 -24 25 -26 ");
-      //  Out+=PMod.getLinkString(layerIndex+2,sideIndex);
+      Out=ModelSupport::getComposite(SMap,blockIndex,
+           "(1 -22 23 -24 25 -26):(-207 -108 22):(-207 -118 22):(-207 -128 22) ");
+     //ALB+++
+  
+      Out+=layOut2; 
       addOuterSurf(Out);
     }
   return; 
@@ -409,6 +475,19 @@ BlockAddition::createLinks()
   return;
 }
 
+void
+BlockAddition::addToInsertChain(attachSystem::ContainedComp& CC) const
+  /*!
+    Adds this object to the containedComp to be inserted.
+    \param CC :: ContainedComp object to add to this
+  */
+{
+  for(int i=blockIndex+1;i<cellIndex;i++)
+    CC.addInsertCell(i);
+    
+  return;
+}
+
 
 void
 BlockAddition::createAll(Simulation& System,
@@ -435,7 +514,6 @@ BlockAddition::createAll(Simulation& System,
     {
       populate(System.getDataBase());
       createUnitVector(O,FC->getLinkAxis(sideIndex),FC->getZ());
-
       createSurfaces();
       createObjects(System,CylPreMod,layerIndex,sideIndex);
       createLinks();

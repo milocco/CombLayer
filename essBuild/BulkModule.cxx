@@ -78,7 +78,6 @@
 #include "Source.h"
 #include "Simulation.h"
 #include "ModelSupport.h"
-#include "MaterialSupport.h"
 #include "generateSurf.h"
 #include "chipDataStore.h"
 #include "LinkUnit.h"
@@ -180,8 +179,8 @@ BulkModule::populate(const Simulation& System)
 	(keyName+StrFunc::makeString("Height",i+1));
       depth[i]=Control.EvalVar<double>
 	(keyName+StrFunc::makeString("Depth",i+1));
-      Mat[i]=ModelSupport::EvalMat<int>(Control,
-	keyName+StrFunc::makeString("Mat",i+1));
+      Mat[i]=Control.EvalVar<int>
+	(keyName+StrFunc::makeString("Mat",i+1));
       if (i)
 	COffset[i]=Control.EvalDefVar<Geometry::Vec3D>
 	  (keyName+StrFunc::makeString("Offset",i+1),
@@ -250,8 +249,8 @@ BulkModule::createObjects(Simulation& System,
       Out=ModelSupport::getComposite(SMap,RI,"5 -6 -7 ");
       if (i)
 	OutX=ModelSupport::getComposite(SMap,RI-10,"(-5:6:7)");
-      else
-	OutX=CC.getExclude();
+      else	
+      OutX=CC.getExclude();
       System.addCell(MonteCarlo::Qhull(cellIndex++,Mat[i],0.0,Out+OutX));
       RI+=10;
     }
@@ -303,6 +302,21 @@ BulkModule::createLinks()
   return;
 }
 
+
+void
+BulkModule::addToInsertChain(attachSystem::ContainedComp& CC) const
+  /*!
+    Adds this object to the containedComp to be inserted.
+    \param CC :: ContainedComp object to add to this
+  */
+{
+  for(int i=bulkIndex+1;i<cellIndex;i++)
+    CC.addInsertCell(i);
+    
+  return;
+}
+
+
 void 
 BulkModule::addFlightUnit(Simulation& System,
 			  const attachSystem::FixedComp& FC)
@@ -340,7 +354,7 @@ BulkModule::addFlightUnit(Simulation& System,
 				 bulkIndex+10*static_cast<int>(nLayer-1),
 				 " 7 -7M ");
   // Dividing surface ?
-  System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out+cx.str()));
+  System.addCell(MonteCarlo::Qhull(cellIndex++,2000,0.0,Out+cx.str()));
   return;
 }
 

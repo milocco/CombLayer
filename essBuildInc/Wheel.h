@@ -60,7 +60,7 @@ class Wheel : public WheelBase
 
   size_t nLayers;                ///< number of layers
   std::vector<double> radius;    ///< cylinder radii
-  std::vector<int> matTYPE;      ///< Material type
+  std::vector<size_t> matTYPE;      ///< Material type
 
   double shaftRadius;               ///< Main shaft radius
   double shaftCoolThick;            ///< coolant 

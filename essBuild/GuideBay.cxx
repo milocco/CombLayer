@@ -90,6 +90,7 @@
 #include "World.h"
 #include "GuideItem.h"
 #include "GuideBay.h"
+#include "ImportControl.h"
 
 namespace essSystem
 {
@@ -224,8 +225,6 @@ GuideBay::createSurfaces()
     SMap.realPtr<Geometry::Cylinder>(bayIndex+7);
   const double RInner=CPtr->getRadius();
   ModelSupport::buildCylinder(SMap,bayIndex+17,Origin,Z,RInner+midRadius);
-  
-
   ModelSupport::buildPlane(SMap,bayIndex+5,Origin-Z*innerDepth,Z);
   ModelSupport::buildPlane(SMap,bayIndex+6,Origin+Z*innerHeight,Z);
   ModelSupport::buildPlane(SMap,bayIndex+15,Origin-Z*depth,Z);
@@ -326,6 +325,7 @@ GuideBay::createGuideItems(Simulation& System)
       GA->setCylBoundary(dPlane,innerCyl,outerCyl);
       GA->addInsertCell("Inner",bayIndex+1);
       GA->addInsertCell("Outer",bayIndex+2);
+
       if (i)
 	GA->createAll(System,*this,0,GUnit[i-1].get());
       else

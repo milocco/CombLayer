@@ -90,6 +90,7 @@
 #include "ContainedGroup.h"
 #include "World.h"
 #include "GuideItem.h"
+#include "ImportControl.h"
 
 namespace essSystem
 {
@@ -117,7 +118,8 @@ GuideItem::GuideItem(const GuideItem& A) :
   beamWidth(A.beamWidth),beamHeight(A.beamHeight),
   nSegment(A.nSegment),height(A.height),width(A.width),
   length(A.length),mat(A.mat),innerCyl(A.innerCyl),
-  outerCyl(A.outerCyl),RInner(A.RInner),ROuter(A.ROuter)
+  outerCyl(A.outerCyl),RInner(A.RInner),ROuter(A.ROuter),
+  zeroCell(A.zeroCell)
   /*!
     Copy constructor
     \param A :: GuideItem to copy
@@ -157,6 +159,7 @@ GuideItem::operator=(const GuideItem& A)
       outerCyl=A.outerCyl;
       RInner=A.RInner;
       ROuter=A.ROuter;
+      zeroCell=A.zeroCell;
     }
   return *this;
 }
@@ -287,7 +290,7 @@ GuideItem::createSurfaces()
   */
 {
   ELog::RegMethod RegA("GuideItem","createSurface");
-
+  
   ModelSupport::buildPlane(SMap,guideIndex+1,Origin,Y);    // Divider plane
 
   SMap.addMatch(guideIndex+1,dividePlane);
@@ -298,8 +301,7 @@ GuideItem::createSurfaces()
   for(size_t i=0;i<nSegment;i++)
     {
       if (i!=nSegment-1)
-	ModelSupport::buildCylinder(SMap,GI+17,Origin,Z,length[i]);
-
+      ModelSupport::buildCylinder(SMap,GI+17,Origin,Z,length[i]);
       ModelSupport::buildPlane(SMap,GI+3,Origin-X*(width[i]/2.0),X);
       ModelSupport::buildPlane(SMap,GI+4,Origin+X*(width[i]/2.0),X);
       ModelSupport::buildPlane(SMap,GI+5,Origin-Z*(height[i]/2.0),Z);
@@ -313,8 +315,56 @@ GuideItem::createSurfaces()
   ModelSupport::buildPlane(SMap,guideIndex+104,bEnter+bX*(beamWidth/2.0),bX);
   ModelSupport::buildPlane(SMap,guideIndex+105,bEnter-bZ*(beamHeight/2.0),bZ);
   ModelSupport::buildPlane(SMap,guideIndex+106,bEnter+bZ*(beamHeight/2.0),bZ);
-  
-  
+ 
+  // some points from ESS masterfile...
+  Geometry::Vec3D PA1(0.0, 489.0166, 0.0);
+  Geometry::Vec3D PA2(-5.251512, 7.309010, -6.0);
+  Geometry::Vec3D PB1(0.0, 489.0166, 0.0);
+  Geometry::Vec3D PB2(5.868551, 6.823497, -6.0);
+  Geometry::Vec3D PC1(0.0, 489.0166, 0.0);
+  Geometry::Vec3D PC2(-5.251512, 7.309010, -6.0);  
+  Geometry::Vec3D PD1(0.0, 489.0166, 0.0);
+  Geometry::Vec3D PD2( 5.868551,  6.823497E+00, 6.0);
+
+  double angle1;
+  angle1=90+atan((PA1[1]-PA2[1])/(PA2[0]))*180/3.14159;
+  double angle2;
+  angle2=90-atan((PB1[1]-PB2[1])/(PB2[0]))*180/3.14159;
+  double angle3;
+  angle3=atan((PC1[2]-PC2[2])/(PC1[1]-PC2[1]))*180/3.14159;
+  double angle4;
+  angle4=-atan((PD1[2]-PD2[2])/(PD1[1]-PD2[1]))*180/3.14159;
+
+  Geometry::Vec3D b1(bX);
+  Geometry::Vec3D b2(bX);
+  Geometry::Vec3D b3(bZ);
+  Geometry::Vec3D b4(bZ);
+
+  //   Geometry::Vec3D OVec(Y);
+ 
+const Geometry::Quaternion Qxy1=
+  Geometry::Quaternion::calcQRotDeg(-angle1,bZ);
+    Qxy1.rotate(b1); 
+const Geometry::Quaternion Qxy2=
+  Geometry::Quaternion::calcQRotDeg(angle2,bZ);
+    Qxy2.rotate(b2); 
+const Geometry::Quaternion Qxy3=
+  Geometry::Quaternion::calcQRotDeg(angle3,bX);
+    Qxy3.rotate(b3); 
+const Geometry::Quaternion Qxy4=
+  Geometry::Quaternion::calcQRotDeg(-angle4,bX);
+    Qxy4.rotate(b4); 
+
+  ModelSupport::buildPlane(SMap,guideIndex+203,bEnter+bX*PA2[0],b1);
+  ModelSupport::buildPlane(SMap,guideIndex+204,bEnter+bX*PB2[0],b2);
+  ModelSupport::buildPlane(SMap,guideIndex+205,bEnter+bZ*PC2[2],b3);
+  ModelSupport::buildPlane(SMap,guideIndex+206,bEnter+bZ*PD2[2],b4);
+
+  ModelSupport::buildPlane(SMap,guideIndex+303,bEnter+bX*(PA2[0]+8.178204E-05),b1);
+  ModelSupport::buildPlane(SMap,guideIndex+304,bEnter+bX*(PB2[0]-8.178204E-05),b2);
+  ModelSupport::buildPlane(SMap,guideIndex+305,bEnter+bZ*(PC2[2]+8.178204E-05),b3);
+  ModelSupport::buildPlane(SMap,guideIndex+306,bEnter+bZ*(PD2[2]-8.178204E-05),b4);
+   
   return;
 }
 
@@ -360,7 +410,7 @@ GuideItem::getEdgeStr(const GuideItem* GPtr) const
     return GPtr->sideExclude(0);
   return "";
 }
-
+int sliceIndex(0);
 void
 GuideItem::createObjects(Simulation& System,const GuideItem* GPtr)
   /*!
@@ -394,15 +444,48 @@ GuideItem::createObjects(Simulation& System,const GuideItem* GPtr)
 	addOuterSurf("Inner",Out);
       else 
 	addOuterUnionSurf("Outer",Out);
-
-      Out+=ModelSupport::getComposite(SMap,guideIndex,"(-103:104:-105:106) ");
-      System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
+  
+       Out+=ModelSupport::getComposite(SMap,guideIndex,"(-103:104:-105:106) ");
+       System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
       GI+=10;
     }      
   // Inner void  
+   // Out=ModelSupport::getComposite(SMap,guideIndex,GI,
+   // 				 "1 7 -7M 103 -104 105 -106 (-203 :204)");
+   // System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
+
+  //ALB+++++++++++++++++
+  //temporary fix to include ficticious void cells
+  sliceIndex+=1;
+  if (sliceIndex==7||sliceIndex==6||sliceIndex==(12+7)||sliceIndex==(12+6)||
+      sliceIndex==(24+7)||sliceIndex==(24+6)||sliceIndex==(36+7)||sliceIndex==(36+6))
+    {
+ Out=ModelSupport::getComposite(SMap,guideIndex,GI,
+   				 "1 7 -7M 103 -104 105 -106 (-203 :204:-205:206)");
+   System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
+
   Out=ModelSupport::getComposite(SMap,guideIndex,GI,
-				 "1 7 -7M 103 -104 105 -106 ");
+  				 "1 7  303 -304 305 -306 ");
   System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
+
+  Out=ModelSupport::getComposite(SMap,guideIndex,GI,
+  				 "1 7  203 -204 205 -206 (-303 :304:-305:306) ");
+  System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
+ 
+   zeroCell=cellIndex-1;
+   // WeightSystem::zeroImp(System,zeroCell,
+   //    			  zeroCell+1);
+    }
+  else 
+    {
+   Out=ModelSupport::getComposite(SMap,guideIndex,GI,
+   				 "1 7 -7M 103 -104 105 -106");
+   System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
+
+    }
+
+  //ALB++++++++++++++++++++++
+
   //  addBoundarySurf(Out);
 
   return;
@@ -474,7 +557,6 @@ GuideItem::createAll(Simulation& System,
   createObjects(System,GPtr);
   createLinks();
   insertObjects(System);              
-
   return;
 }
 

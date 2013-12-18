@@ -233,29 +233,37 @@ SupplyPipe::insertInlet(Simulation& System,
 
   Geometry::Vec3D Pt= Origin+X*PPts[0].X()+
     Y*PPts[0].Y()+Z*PPts[0].Z();
-
   // GET Z Point from layer
   Geometry::Vec3D PtZ=LC->getSurfacePoint(0,lSideIndex);
   const int commonSurf=LC->getCommonSurf(lSideIndex);
   const std::string commonStr=(commonSurf) ? 		       
     StrFunc::makeString(commonSurf) : "";
+  PtZ += X*PPts[0].X()+ Y*PPts[0].Y()+Z*PPts[0].Z();
   if (PtZ!=Pt)
     Coaxial.addPoint(Pt);
 
   Coaxial.addSurfPoint(PtZ,
-		       LC->getLayerString(0,lSideIndex),
-		       commonStr);
+  		       LC->getLayerString(1,lSideIndex),
+  		       commonStr);
 
 
-  PtZ=LC->getSurfacePoint(2,lSideIndex);
+  PtZ=LC->getSurfacePoint(1,lSideIndex);
+  
+  PtZ += X*PPts[0].X()+Y*PPts[0].Y()+Z*PPts[0].Z();
+  
   if (PtZ!=Pt)
     Coaxial.addSurfPoint(PtZ,LC->getLayerString(2,lSideIndex),
-			 commonStr);
+    			 commonStr);
+
+  ELog::EM<<"Pt  "<<Pt<<ELog::endDebug;
+  ELog::EM<<"PtZ  "<<PtZ<<ELog::endDebug;
 
   // Inner Points
   for(size_t i=1;i<=NSegIn;i++)
     {
-       Pt=Origin+X*PPts[i].X()+Y*PPts[i].Y()+Z*PPts[i].Z();
+      Pt=Origin+X*PPts[i].X()+Y*(PPts[i]).Y()+Z*PPts[i].Z();
+      //      ELog::EM<<"PtAA  "<<Pt<<"   ppts1   "<<PPts[1]<<ELog::endDebug;
+
        Coaxial.addPoint(Pt);
     }  
   
@@ -265,13 +273,43 @@ SupplyPipe::insertInlet(Simulation& System,
   Coaxial.addRadius(voidRadius,voidMat,0.0);
   Coaxial.addRadius(outAlRadius,outAlMat,0.0);
 
-  Coaxial.setActive(0,1);  
-  // Coaxial.setActive(1,5);
-  // Coaxial.setActive(2,29);
-  // Coaxial.setActive(3,29);
-  
+  // std::cout<<"keyNAme"<<keyName<<::std::endl; 
+ if(keyName=="TSupply")
+    {
+  Coaxial.setActive(0,3);  
+  Coaxial.setActive(1,5);
+  Coaxial.setActive(2,29);
+  Coaxial.setActive(3,29);
+
+    }
+ 
+
+ if(keyName=="LSupply")
+    {
+  Coaxial.setActive(0,3);  
+  Coaxial.setActive(1,5);
+  Coaxial.setActive(2,29);
+  Coaxial.setActive(3,29);
+
+    }
+
+  if(keyName=="LReturn")
+    {
+  Coaxial.setActive(0,3);  
+  Coaxial.setActive(1,0);
+
+}
+
+  if(keyName=="TReturn")
+    {
+  Coaxial.setActive(0,3);  
+  Coaxial.setActive(1,0);
+}
+
+
   Coaxial.createAll(System);
   return;
+
 }
   
 void

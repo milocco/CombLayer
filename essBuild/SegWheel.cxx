@@ -412,11 +412,11 @@ SegWheel::makeShaftObjects(Simulation& System)
 
   // void in shaft foot
   Out=ModelSupport::getComposite(SMap,wheelIndex,"-1017 -1015 1025");
-  System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
+  System.addCell(MonteCarlo::Qhull(cellIndex++,coolingShaftMatExt,0.0,Out));
 
   // void around shaft
   Out=ModelSupport::getComposite(SMap,wheelIndex," (-1037 1056 -1006 1027):(-1057 -1056 1027 46 (1046:1047)):(-1057 1027 -45 1055 (-1045:1047)):(-1055 -1037 1035 (-1025:1027) ");
-  System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
+  System.addCell(MonteCarlo::Qhull(cellIndex++,coolingShaftMatExt,0.0,Out));
 
   Out=ModelSupport::getComposite(SMap,wheelIndex,"-18 1035 -1006 (-1037:(-1056 1055))");
   addOuterSurf("Shaft",Out);  
@@ -660,7 +660,7 @@ SegWheel::createObjects(Simulation& System)
   // Void surround
   Out=ModelSupport::getComposite(SMap,wheelIndex,"(38 -48 55 -56 (10:-35:36)) " 
 				          ":(18 -38 55 -56 (-45:46))");
-  System.addCell(MonteCarlo::Qhull(cellIndex++,0,0.0,Out));
+  System.addCell(MonteCarlo::Qhull(cellIndex++, coolingShaftMatExt,0.0,Out));
 
   // outer world 
   //  Out=ModelSupport::getComposite(SMap,wheelIndex," (-48 55 -56 18) : "

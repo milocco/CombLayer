@@ -68,7 +68,7 @@ class GuideItem : public attachSystem::ContainedGroup,
   int outerCyl;        ///< Outer Cylinder 
   double RInner;       ///< Inner cylinder radius 
   double ROuter;       ///< Outer cylinder radius 
-
+  int zeroCell;
   void populate(const Simulation&);
   void createUnitVector(const attachSystem::FixedComp&,
 			const size_t);
@@ -90,7 +90,7 @@ class GuideItem : public attachSystem::ContainedGroup,
 
   void setCylBoundary(const int,const int,const int);
 
-    
+  int getZeroCell() const { return zeroCell;}   
   void createAll(Simulation&,const attachSystem::FixedComp&,
 		 const size_t,const GuideItem*);
 

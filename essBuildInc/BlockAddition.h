@@ -58,8 +58,13 @@ class BlockAddition :  public attachSystem::ContainedComp,
 
   int waterMat;                  ///< Water material
   int wallMat;                   ///< Wall material
-
   int edgeSurf;                  ///< Surface to join too
+
+  double pipeLength;                 ///< Length
+  double pipeRadius;                 ///< Length
+  int pipeNumber;                  ///< Surface to join too
+
+
   Geometry::Vec3D rotCent;       ///< General rotation centre
 
   void populate(const FuncDataBase&);
@@ -75,7 +80,7 @@ class BlockAddition :  public attachSystem::ContainedComp,
   std::string rotateItem(std::string);
 
  public:
-
+      
   BlockAddition(const std::string&);
   BlockAddition(const BlockAddition&);
   BlockAddition& operator=(const BlockAddition&);
@@ -83,6 +88,9 @@ class BlockAddition :  public attachSystem::ContainedComp,
 
   virtual std::string getLinkComplement(const size_t) const;
   virtual std::string getLinkString(const size_t) const;
+
+
+  virtual void addToInsertChain(attachSystem::ContainedComp&) const; 
 
   /// Set/unset active
   void setActive(const int A) { active=A; }

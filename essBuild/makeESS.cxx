@@ -100,10 +100,11 @@
 #include "BulkModule.h"
 #include "ShutterBay.h"
 #include "GuideBay.h"
+//#include "BlockAddition"
+#include "ProtonTube.h"
 
 #include "ConicModerator.h"
 #include "essDBMaterial.h"
-
 #include "makeESS.h"
 
 namespace essSystem
@@ -111,13 +112,15 @@ namespace essSystem
 
 makeESS::makeESS() :
   Reflector(new BeRef("BeRef")),
-  PBeam(new ts1System::ProtonVoid("ProtonBeam")),
+  // PBeam(new ts1System::ProtonVoid("ProtonBeam")),
+  PBeam(new ProtonTube("ProtonTube")),
   LowAFL(new moderatorSystem::FlightLine("LowAFlight")),
   LowBFL(new moderatorSystem::FlightLine("LowBFlight")),
   LowPre(new CylPreMod("LowPre")),
   LowSupplyPipe(new SupplyPipe("LSupply")),
   LowReturnPipe(new SupplyPipe("LReturn")),
-
+  TopSupplyPipe(new SupplyPipe("TSupply")),
+  TopReturnPipe(new SupplyPipe("TReturn")),
   TopMod(new CylModerator("TopMod")),
   TopAFL(new moderatorSystem::FlightLine("TopAFlight")),
   TopBFL(new moderatorSystem::FlightLine("TopBFlight")),
@@ -142,10 +145,12 @@ makeESS::makeESS() :
   OR.addObject(TopAFL);
   OR.addObject(TopBFL);
   OR.addObject(TopPre);
-
+  OR.addObject(LowSupplyPipe);
+  OR.addObject(LowReturnPipe);
+  OR.addObject(TopSupplyPipe);
+  OR.addObject(TopReturnPipe);
   OR.addObject(Bulk);
   OR.addObject(BulkLowAFL);
-
   OR.addObject(ShutterBayObj);
 }
 
@@ -155,6 +160,91 @@ makeESS::~makeESS()
     Destructor
   */
 {}
+
+void 
+makeESS::build(Simulation* SimPtr,
+	       const mainSystem::inputParam& IParam)
+  /*!
+    Carry out the full build
+    \param SimPtr :: Simulation system
+    \param IParam :: Input parameters
+   */
+{
+  // For output stream
+  ELog::RegMethod RControl("makeESS","build");
+
+  int voidCell(74123);
+  // Add extra materials to the DBdatabase
+
+  ModelSupport::addESSMaterial();
+
+  makeTarget(*SimPtr,IParam);
+  
+  Reflector->addInsertCell(voidCell);
+  Reflector->addToInsertChain(Target->getKey("Wheel")); 
+  Reflector->createAll(*SimPtr,World::masterOrigin());
+  Bulk->createAll(*SimPtr,*Reflector,*Reflector);
+
+  attachSystem::addToInsertSurfCtrl(*SimPtr,*Bulk,Target->getKey("Wheel"));
+  attachSystem::addToInsertForced(*SimPtr,*Bulk,Target->getKey("Shaft"));
+  
+  const std::string lowModType=IParam.getValue<std::string>("lowMod");
+  const std::string topModType=IParam.getValue<std::string>("topMod");
+
+  if (lowModType=="Cone")
+    {
+      buildConicMod(*SimPtr);
+      Bulk->addFlightUnit(*SimPtr,*LowAFL);
+      Bulk->addFlightUnit(*SimPtr,*LowBFL);
+    }
+  else
+    {
+      buildLowMod(*SimPtr);
+      lowFlightLines(*SimPtr);
+      Bulk->addFlightUnit(*SimPtr,*LowAFL);
+      Bulk->addFlightUnit(*SimPtr,*LowBFL);  
+
+    }
+
+  TopMod->addInsertCell(Reflector->getMainCell());
+  TopMod->createAll(*SimPtr,*Reflector);
+  TopPre->addInsertCell("Main",Reflector->getMainCell());
+  TopPre->addInsertCell("BlockA",Reflector->getMainCell());
+  TopPre->addInsertCell("BlockB",Reflector->getMainCell());
+  TopPre->addInsertCell("Main",Bulk->getRefCell());
+  TopPre->addInsertCell("BlockA",Bulk->getRefCell());
+  TopPre->addInsertCell("BlockB",Bulk->getRefCell());
+  TopPre->createAll(*SimPtr,*TopMod);
+
+  topFlightLines(*SimPtr);
+
+
+  Bulk->addFlightUnit(*SimPtr,*TopAFL);
+  Bulk->addFlightUnit(*SimPtr,*TopBFL);
+
+  // Full surround object
+  ShutterBayObj->addInsertCell(voidCell);
+  ShutterBayObj->createAll(*SimPtr,*Bulk,*Bulk);
+  attachSystem::addToInsertForced(*SimPtr,*ShutterBayObj,
+  				  Target->getKey("Wheel"));
+  attachSystem::addToInsertForced(*SimPtr,*ShutterBayObj,
+  				  Target->getKey("Shaft"));
+
+   createGuides(*SimPtr);  
+
+   Reflector->addToInsertChain(*PBeam);
+   Bulk->addToInsertChain(*PBeam);
+   ShutterBayObj->addToInsertChain(*PBeam);
+   PBeam->createAll(*SimPtr,*Target,1);
+
+   LowSupplyPipe->createAll(*SimPtr,*LowMod,0,6,4);
+   LowReturnPipe->createAll(*SimPtr,*LowMod,0,3,2);
+
+  TopSupplyPipe->createAll(*SimPtr,*TopMod,0,5,5);
+  TopReturnPipe->createAll(*SimPtr,*TopMod,0,3,2);
+    
+  return;
+}
 
 
 void
@@ -172,7 +262,7 @@ makeESS::lowFlightLines(Simulation& System)
   LowAFL->addBoundarySurf("inner",Out);  
   LowAFL->addBoundarySurf("outer",Out);  
   LowAFL->addOuterSurf("outer",LowPre->getBoxCut('A'));  
-  LowAFL->createAll(System,1,*LowPre);
+  LowAFL->createAll(System,0,1,*LowPre);
   attachSystem::addToInsertSurfCtrl(System,*LowAFL,*LowPre->getBox('A'));
   attachSystem::addToInsertSurfCtrl(System,*Reflector,
   				    LowAFL->getKey("outer"));
@@ -186,8 +276,8 @@ makeESS::lowFlightLines(Simulation& System)
   attachSystem::addToInsertSurfCtrl(System,*LowBFL,*LowPre->getBox('B'));
   attachSystem::addToInsertSurfCtrl(System,*Reflector,
   				    LowBFL->getKey("outer"));
-  attachSystem::addToInsertSurfCtrl(System,*LowBFL,
-  				    LowAFL->getKey("outer"));
+  // attachSystem::addToInsertSurfCtrl(System,*LowBFL,
+  // 				    LowAFL->getKey("outer"));
   return;
 }
 
@@ -237,7 +327,7 @@ makeESS::makeTarget(Simulation& System,
 
   const int voidCell(74123);  
   const std::string targetType=
-    IParam.getValue<std::string>("targetType");
+    IParam.getValue<std::string>("targetType");   
   if (targetType=="help")
     {
       ELog::EM<<"Target Type : "<<ELog::endBasic;
@@ -306,20 +396,22 @@ makeESS::createGuides(Simulation& System)
    */
 {
   ELog::RegMethod RegA("makeESS","createGuides");
-
+ 
   for(size_t i=0;i<4;i++)
     {
       boost::shared_ptr<GuideBay> GB(new GuideBay("GuideBay",i+1));
+ 
       GB->addInsertCell("Inner",ShutterBayObj->getMainCell());
       GB->addInsertCell("Outer",ShutterBayObj->getMainCell());
       GB->setCylBoundary(Bulk->getLinkSurf(2),
 			 ShutterBayObj->getLinkSurf(2));
-      if(i<2)
+     if(i<2)
 	GB->createAll(System,*LowMod);  
       else
 	GB->createAll(System,*TopMod);  
       GBArray.push_back(GB);
     }
+
   return;
 }
 
@@ -331,9 +423,8 @@ makeESS::buildLowMod(Simulation& System)
   */
 {
   ELog::RegMethod RegA("makeESS","buildLowMod");
-
   ModelSupport::objectRegister& OR=
-    ModelSupport::objectRegister::Instance();
+  ModelSupport::objectRegister::Instance();
   LowMod=boost::shared_ptr<essMod>(new CylModerator("LowMod"));
   OR.addObject(LowMod);
 
@@ -343,86 +434,11 @@ makeESS::buildLowMod(Simulation& System)
   LowPre->addInsertCell("Main",Reflector->getMainCell());
   LowPre->addInsertCell("BlockA",Reflector->getMainCell());
   LowPre->addInsertCell("BlockB",Reflector->getMainCell());
+  LowPre->addInsertCell("Main",Bulk->getRefCell());
+
   LowPre->createAll(System,*LowMod);
   return;
 }
-
-void 
-makeESS::build(Simulation* SimPtr,
-	       const mainSystem::inputParam& IParam)
-  /*!
-    Carry out the full build
-    \param SimPtr :: Simulation system
-    \param IParam :: Input parameters
-   */
-{
-  // For output stream
-  ELog::RegMethod RControl("makeESS","build");
-
-  int voidCell(74123);
-  // Add extra materials to the DBdatabase
-  ModelSupport::addESSMaterial();
-
-  makeTarget(*SimPtr,IParam);
-  
-  Reflector->addInsertCell(voidCell);
-  Reflector->createAll(*SimPtr,World::masterOrigin());
-  Reflector->addToInsertChain(Target->getKey("Wheel")); 
-
-  Reflector->addToInsertChain(*PBeam);
-  PBeam->createAll(*SimPtr,*Target,1,*Reflector,-1);
-
-  Bulk->createAll(*SimPtr,*Reflector,*Reflector);
-  attachSystem::addToInsertSurfCtrl(*SimPtr,*Bulk,Target->getKey("Wheel"));
-  attachSystem::addToInsertForced(*SimPtr,*Bulk,Target->getKey("Shaft"));
-
-  const std::string lowModType=IParam.getValue<std::string>("lowMod");
-  const std::string topModType=IParam.getValue<std::string>("topMod");
-
-  if (lowModType=="Cone")
-    {
-      buildConicMod(*SimPtr);
-      Bulk->addFlightUnit(*SimPtr,*LowAFL);
-      Bulk->addFlightUnit(*SimPtr,*LowBFL);
-    }
-  else
-    {
-      buildLowMod(*SimPtr);
-      lowFlightLines(*SimPtr);
-      Bulk->addFlightUnit(*SimPtr,*LowAFL);
-      Bulk->addFlightUnit(*SimPtr,*LowBFL);  
-    }
-
-
-
-  TopMod->addInsertCell(Reflector->getMainCell());
-  TopMod->createAll(*SimPtr,*Reflector);
-
-  TopPre->addInsertCell("Main",Reflector->getMainCell());
-  TopPre->addInsertCell("BlockA",Reflector->getMainCell());
-  TopPre->addInsertCell("BlockB",Reflector->getMainCell());
-  TopPre->createAll(*SimPtr,*TopMod);
-  topFlightLines(*SimPtr);
-
-  Bulk->addFlightUnit(*SimPtr,*TopAFL);
-  Bulk->addFlightUnit(*SimPtr,*TopBFL);
-
-  // Full surround object
-  ShutterBayObj->addInsertCell(voidCell);
-  ShutterBayObj->createAll(*SimPtr,*Bulk,*Bulk);
-  attachSystem::addToInsertForced(*SimPtr,*ShutterBayObj,
-				  Target->getKey("Wheel"));
-  attachSystem::addToInsertForced(*SimPtr,*ShutterBayObj,
-				  Target->getKey("Shaft"));
-
-  createGuides(*SimPtr);  
-
-  LowSupplyPipe->createAll(*SimPtr,*LowMod,0,6,4);
-  LowReturnPipe->createAll(*SimPtr,*LowMod,0,3,2);
-  
-  return;
-}
-
 
 }   // NAMESPACE ts1System
 

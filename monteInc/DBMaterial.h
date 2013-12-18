@@ -80,6 +80,8 @@ class DBMaterial
 
   void resetMaterial(const MonteCarlo::Material&);
   void setMaterial(const MonteCarlo::Material&);
+  void setMaterialOld(const MonteCarlo::Material&);
+
   void setNeutMaterial(const int,const scatterSystem::neutMaterial&);
   void setNeutMaterial(const int,const scatterSystem::neutMaterial*);
 

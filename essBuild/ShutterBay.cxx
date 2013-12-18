@@ -92,8 +92,8 @@ namespace essSystem
 
 ShutterBay::ShutterBay(const std::string& Key)  :
   attachSystem::ContainedComp(),attachSystem::FixedComp(Key,3),
-  bulkIndex(ModelSupport::objectRegister::Instance().cell(Key)),
-  cellIndex(bulkIndex+1)
+  SBayIndex(ModelSupport::objectRegister::Instance().cell(Key)),
+  cellIndex(SBayIndex+1)
   /*!
     Constructor BUT ALL variable are left unpopulated.
     \param Key :: Name for item in search
@@ -102,7 +102,7 @@ ShutterBay::ShutterBay(const std::string& Key)  :
 
 ShutterBay::ShutterBay(const ShutterBay& A) : 
   attachSystem::ContainedComp(A),attachSystem::FixedComp(A),
-  bulkIndex(A.bulkIndex),cellIndex(A.cellIndex),
+  SBayIndex(A.SBayIndex),cellIndex(A.cellIndex),
   xStep(A.xStep),yStep(A.yStep),zStep(A.zStep),
   xyAngle(A.xyAngle),zAngle(A.zAngle),radius(A.radius),
   height(A.height),depth(A.depth),mat(A.mat)
@@ -195,10 +195,9 @@ ShutterBay::createSurfaces()
 
   // rotation of axis:
 
-  ModelSupport::buildPlane(SMap,bulkIndex+5,Origin-Z*depth,Z);
-  ModelSupport::buildPlane(SMap,bulkIndex+6,Origin+Z*height,Z);
-  ModelSupport::buildCylinder(SMap,bulkIndex+7,Origin,Z,radius);
-  
+  ModelSupport::buildPlane(SMap,SBayIndex+5,Origin-Z*depth,Z);
+  ModelSupport::buildPlane(SMap,SBayIndex+6,Origin+Z*height,Z);
+  ModelSupport::buildCylinder(SMap,SBayIndex+7,Origin,Z,radius);
   return;
 }
 
@@ -214,7 +213,7 @@ ShutterBay::createObjects(Simulation& System,
   ELog::RegMethod RegA("ShutterBay","createObjects");
 
   std::string Out;
-  Out=ModelSupport::getComposite(SMap,bulkIndex,"5 -6 -7 ");
+  Out=ModelSupport::getComposite(SMap,SBayIndex,"5 -6 -7 ");
   addOuterSurf(Out);
   Out+=CC.getExclude();
   System.addCell(MonteCarlo::Qhull(cellIndex++,mat,0.0,Out));
@@ -222,6 +221,21 @@ ShutterBay::createObjects(Simulation& System,
 
   return;
 }
+
+void
+ShutterBay::addToInsertChain(attachSystem::ContainedComp& CC) const
+  /*!
+    Adds this object to the containedComp to be inserted.
+    \param CC :: ContainedComp object to add to this
+  */
+{
+  for(int i=SBayIndex+1;i<cellIndex;i++)
+    CC.addInsertCell(i);
+    
+  return;
+}
+
+
 
 void
 ShutterBay::createLinks()
@@ -234,9 +248,9 @@ ShutterBay::createLinks()
   FixedComp::setConnect(0,Origin-Z*depth,-Z);  // base
   FixedComp::setConnect(1,Origin+Z*height,Z);  // 
   FixedComp::setConnect(2,Origin+Y*radius,Y);   // outer point
-  FixedComp::setLinkSurf(0,-SMap.realSurf(bulkIndex+5));
-  FixedComp::setLinkSurf(1,SMap.realSurf(bulkIndex+6));
-  FixedComp::setLinkSurf(2,SMap.realSurf(bulkIndex+7));
+  FixedComp::setLinkSurf(0,-SMap.realSurf(SBayIndex+5));
+  FixedComp::setLinkSurf(1,SMap.realSurf(SBayIndex+6));
+  FixedComp::setLinkSurf(2,SMap.realSurf(SBayIndex+7));
 
   return;
 }
